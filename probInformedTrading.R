@@ -81,7 +81,6 @@ N = rbinom(100, 1, d)
 mu = runif(1,0,100)
 eb = runif(1,0,200)
 es = runif(1,0,200)
-out_ = data.frame(BS, a = Z, d = N, mu, eb, es)
 tau0 = 0 # the case there is no event
 tau1 = 0 # the case there is an negative event
 tau2 = 0 # the case there is an postive event
