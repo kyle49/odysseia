@@ -78,9 +78,16 @@ a = 0.1
 d = 0.5
 Z = rbinom(100, 1, a)
 N = rbinom(100, 1, d)
-mu = runif(0,100)
-eb = runif(0,200)
-es = runif(0,200)
+mu = runif(1,0,100)
+eb = runif(1,0,200)
+es = runif(1,0,200)
+out_ = data.frame(BS, a = Z, d = N, mu, eb, es)
+tau0 = 0 # the case there is no event
+tau1 = 0 # the case there is an negative event
+tau2 = 0 # the case there is an postive event
+lkhd_ = sum((log(a) + dpois(BS$B, eb,log = TRUE) + dpois(BS$S, es, log = TRUE)) +
+              (log(1-a) + log(d) + dpois(BS$B, eb,log = TRUE) + dpois(BS$S, es + mu, log = TRUE)) + 
+              (log(1-a) + log(1-d) + dpois(BS$B, eb + mu,log = TRUE) + dpois(BS$S, es, log = TRUE))) 
 
 for(i in 1:iter){
   
@@ -89,9 +96,31 @@ for(i in 1:iter){
   # Sum = P(E = 0) * P(theta, X|E = 0) + P(E = 1) * P(theta, X|E = 1)
   # P(theta, X|E = 1) = P(theta, X|N = 0) + P(theta, X|N = 1)
   
-  p = 0
-  for(j in 1:100){
-    
-    p = p + l * (a * Z[i] + (1-a) * (1-Z[i])) * (d * N[i] + (1-d)*(1-N[i]))
+  # E step
+  tau0 = (1 - a) * dpois(BS$B, eb) * dpois(BS$S, es)
+  tau1 = a * d  * dpois(BS$B, eb) * dpois(BS$S, es + mu)
+  tau2 = a * (1 - d) * dpois(BS$B, eb + mu) * dpois(BS$S, es)
+  TAU = tau0 + tau1 + tau2
+  tau0 = tau0 / TAU
+  tau1 = tau1 / TAU
+  tau2 = tau2 / TAU
+  
+  # M step
+  a = 1 - sum(tau0) / 100
+  if(a != 0){
+    d = sum(tau1) / (100 * a)
+  } else {
+    d = 0.5
   }
+  eb = sum(tau0 * BS$B) / sum(tau0)
+  es = sum(tau0 * BS$S) / sum(tau0)
+  mu = 0.5 * (sum(tau1 * BS$S) / sum(tau1) - es + sum(tau2 * BS$B) / sum(tau2) - eb)
+  lkhd_[i + 1] = sum(tau0 * (log(a) + dpois(BS$B, eb,log = TRUE) + dpois(BS$S, es, log = TRUE)) +
+                       tau1 * (log(1-a) + log(d) + dpois(BS$B, eb,log = TRUE) + dpois(BS$S, es + mu, log = TRUE)) + 
+                       tau2 * (log(1-a) + log(1-d) + dpois(BS$B, eb + mu,log = TRUE) + dpois(BS$S, es, log = TRUE))) 
+  if(lkhd_[i + 1] < -1e49){
+    if(a == 1) a = 0.1
+  }
+  if(abs(lkhd_[i + 1] - lkhd_[i]) < 0.0001) break
 }
+plot(lkhd_[is.finite(lkhd_)], type = "l")
