@@ -123,3 +123,45 @@ for(i in 1:iter){
   if(abs(lkhd_[i + 1] - lkhd_[i]) < 0.0001) break
 }
 plot(lkhd_[is.finite(lkhd_)], type = "l")
+
+# PROBLEM: sometimes a -> 1 then estimate of mu does not converge
+#          sometimes a -> 0 and d -> 0 or 1 then estimates of mu, eb, es do not converge
+# SOLUTION: set prior for a and d
+# Prior of a: beta[a1, a2]
+# Prior of d: beta[d1, d1]
+
+# Another case
+set.seed(2017)
+out = replicate(100, simu_bsc(0.05, 0.9, 50, 10, 120))
+BS = data.frame(B = out[1,], S = out[2,])
+hist(BS$B)
+# E-M algorithm in this case gives d = 1, MCMC is fine.
+
+model_modf = function(){
+  for(i in 1:100){
+    E[i] ~ dbern(a)
+    N[i] ~ dbern(d)
+    B[i] ~ dpois(eb + mu * E[i] * (1-N[i]))
+    S[i] ~ dpois(es + mu * E[i] * N[i])
+  }
+  a ~ dbeta(1,9)
+  d ~ dbeta(2,2)
+  eb ~ dunif(0,1000)
+  es ~ dunif(0,1000)
+  mu ~ dunif(0,1000)
+}
+write.model(model_modf, "PIN_model_modf.jags")
+mod.init = list(a = runif(1), d = runif(1), eb = runif(1,0,1000), es = runif(1,0,1000), mu = runif(1,0,1000))
+mod1.jags = jags.model("PIN_model_modf.jags", data = BS, inits = mod.init, n.chains = 3)
+mod.vars = c("a", "d", "eb", "es", "mu")
+mod1.sim = coda.samples(mod1.jags, mod.vars, n.iter = 10000)
+summary(mod1.sim)
+plot(mod1.sim)
+
+
+# Another case where dist. are similar
+set.seed(2016)
+out = replicate(100, simu_bsc(0.3, 0.5, 5, 100, 110))
+BS = data.frame(B = out[1,], S = out[2,])
+hist(BS$B)
+# Neither of methods works well in this case.
