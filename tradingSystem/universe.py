@@ -1,53 +1,109 @@
+# -*- coding: utf-8 -*-
+"""
+@author: Kyle
+"""
+
 import tushare as ts
 import datetime as dt
 import numpy as np
+import pandas as pd
 
 class Universe:
 
-    def __init__(self, tickers = ['601318','601155','000732','600340'], delay = 1, time = "2018-05-04"):
+    """
+    Management of the pool
+    """
+
+
+    def __init__(self, tickers = ['601318','601155','000732','600340'], time = "2018-05-02", delay = 1, index_type = None):
 
         self._tickers = tickers
-        self._delay = delay
-        self._update = dt.datetime.strptime(time, "%Y-%m-%d") - dt.timedelta(days = delay)
-        self._networth = None
-        # must run baseline to initialize
-        self._index = None
-
-    """
-    Index classes currently not supported in tushare
-    """
-
-    def get_hs300(self):
-
-        #ts.get_hs300s() #NOT WORKING!
-        self._index = "hs300"
-    
-    def get_sz50(self):
-
-        self._index = "sz50"
-
-    def get_zz500(self):
-
-        self._index = "399905"
-    
-
-    def baseline(self):
+        if isinstance(time, str):
+            self._update = dt.datetime.strptime(time, "%Y-%m-%d")
+        else:
+            self._update = time
         
-        start_ = str(self._update - dt.timedelta(days = 10))
-        end_ = str(self._update)
+        self._delay = delay
+        # action on delay 1 and evaluation of performance on delay 2
+        self._networth = [1.]
+        # must run baseline to initialize
+        self._index = index_type
+        # only accept "hs300", "sz50" and "399905" for "zz500"
+
+
+    def updatingPool(self, time, tickers = None):
+
+        if tickers is not None:
+            self._tickers = tickers
+        if isinstance(time, str):
+            dt.datetime.strptime(time, "%Y-%m-%d")
+        self._update = time
+
+
+    def evaluation(self):
+        
+        """
+        If the pool is not from an index, compare harmonic mean, use index otherwise.
+        """
+
         if self._index is None:
+            out = self.find_next_data(self._update)
+            if out is None:
+                return 1
             prices = []
             for stock in self._tickers:
-                prices.append(ts.get_hist_data(stock, start = start_, end = end_)["close"][0])
+                try:
+                    p_ = ts.get_hist_data(stock, start = str(self._update), end = str(out[0]))["close"]
+                except Exception as e:
+                    continue
+                if len(p_) != 0:
+                    prices.append(p_[0])
+            if len(prices) == 0:
+                print("No data on the next day, unable to update")
+                return 1
             indx = self.harmonicMean(prices)
+            out_ = self.find_next_data(out[0])
+            if out_ is None:
+                return 1
+            prices = []
+            for stock in self._tickers:
+                try:
+                    p_ = ts.get_hist_data(stock, start = str(out[0]), end = str(out_[0]))["close"]
+                except Exception as e:
+                    continue
+                if len(p_) != 0:
+                    prices.append(p_[0])
+            if len(prices) == 0:
+                print("No data on the next day, unable to update")
+                return 1
+            self._networth.append(self.harmonicMean(prices) / indx)
         else:
-            indx = ts.get_hist_data(self._index, start = start_, end = end_)["close"][0]
-        # use harmonic mean as index unless some specific index type is provided
-        if self._networth is None:
-            self._networth = [1.]
-        else:
-            self._networth.append(indx / self._baseline)
-        self._baseline = indx
+            out = self.find_next_data(self._update, index_type = self._index)
+            if out is None:
+                return 1
+            out_ = self.find_next_data(out[0], index_type = self._index)
+            if out_ is None:
+                return 1
+            self._networth.append(out_[1] / out[1])    
+
+        return 0
+
+
+    @staticmethod
+    def find_next_data(time, index_type = "hs300"):
+        if isinstance(time, str):
+            time = dt.datetime.strptime(time, "%Y-%m-%d")
+        p = pd.Series()
+        attempt = 1
+        while len(p) == 0:
+            time_ = time + dt.timedelta(days = attempt)
+            # print("try: ", time, time_) ########################
+            p = ts.get_hist_data(index_type, start = str(time), end = str(time_))["close"]
+            attempt += 1
+            if attempt > 9:
+                print("Unable to find new data")
+                return None
+        return time_, p[0]
 
 
     @staticmethod
@@ -56,22 +112,21 @@ class Universe:
         return 1/np.nanmean(1/x)
 
 
-    def updatingNetWorth(self, time):
-
-        self._update = dt.datetime.strptime(time, "%Y-%m-%d") - dt.timedelta(days = self._delay)
-        self.baseline()
-
     
-    def updatingPool(self, tickers, time):
 
-        self._tickers = tickers
-        self._update = dt.datetime.strptime(time, "%Y-%m-%d") - dt.timedelta(days = self._delay)
         
 
 if __name__ == '__main__':
 
     tst = Universe()
-    #print(tst.harmonicMean([1,2,3]))
-    tst.baseline()
-    tst.updatingNetWorth("2018-04-01")
+    tickers = ['601318','601155','000732','600340']
+    #out = tst.find_next_data(tst._update)
+    #print(out)
+    #print(ts.get_hist_data("hs300", "2018-05-03", "2018-05-04")["close"])
+    tst.updatingPool(tickers, "2018-05-03")
+    tst.evaluation()
+    tst.updatingPool(tickers, "2018-05-04")
+    tst.evaluation()
     print(tst._networth)
+
+

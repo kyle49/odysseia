@@ -13,13 +13,37 @@ class OrderApi:
 
         self._slippage_std = .01
         self._prob_of_failure = .0001
-        self._fee = .02
-        self._fixed_fee = 10
-        self._calculate_fee = lambda x : self._fee*abs(x) + self._fixed_fee
+
+    """
+    def process_order_simu(self, order):
+
+        # takes an order = [stockID, price, vol] from the algorithm class
+        slippage = np.random.normal(0, self._slippage_std, size=1)[0]
+        if np.random.choice([False, True], p=[self._prob_of_failure, 1 -self._prob_of_failure],size=1)[0]:
+            return (order[0], order[1]*(1+slippage), order[2], self._calculate_fee(order))
+        # return (stockID, actual_price, vol, fees)
+    """
+
 
     def process_order(self, order):
 
-        slippage = np.random.normal(0, self._slippage_std, size=1)[0]
-        if np.random.choice([False, True], p=[self._prob_of_failure, 1 -self._prob_of_failure],size=1)[0]:
-            trade_fee = self._fee*order[1]*(1+slippage)*order[2]
-            return (order[0], order[1]*(1+slippage), order[2], self._calculate_fee(trade_fee))
+        return (order[0], order[1], order[2], self._calculate_fee(order)) 
+
+
+    @staticmethod
+    def _calculate_fee(order):
+
+        short = 0
+        if order[2] < 0:
+            order[2] = -order[2]
+            short = 1
+        return max(1, np.round(order[2]/1000, 0)) + max(5, order[1] * order[2] * (.003 + .001 * short))
+
+
+if __name__ == "__main__":
+
+    a = OrderApi()
+    order1 = ["A", 10, 1000]
+    order2 = ["B", 8, -400]
+    print(a.process_order(order1))
+    print(a.process_order(order2))
