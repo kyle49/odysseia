@@ -12,9 +12,10 @@ class Portfolio:
 
         self._portfolio = {}
         self._portfolio['**CASH**'] = {'Shares' : balance, 'Price' : 1.0, 'Updates' : 1}
+        self._quotaPerStock = 0
+        # Initialised by set_quota
 
-
-    def update(self, price, ticker):
+    def update(self, price, ticker, vol = 0):
 
         if ticker in self._portfolio:
             self._portfolio[ticker]['Price'] = price
@@ -23,6 +24,7 @@ class Portfolio:
             self._portfolio[ticker] = {}
             self._portfolio[ticker]['Price'] = price
             self._portfolio[ticker]['Shares'] = 0
+            self._portfolio[ticker]['Quota'] = self._quotaPerStock
             self._portfolio[ticker]['Updates'] = 1
 
 
@@ -77,6 +79,13 @@ class Portfolio:
         if ticker not in self._portfolio:
             return -1
         return self._portfolio[ticker]['Shares']
+    
+    
+    def get_quota(self, ticker):
+        
+        if ticker not in self._portfolio:
+            return -1
+        return self._portfolio[ticker]['quota']
 
 
     def get_update_count(self, ticker):
@@ -89,9 +98,20 @@ class Portfolio:
         self._portfolio[ticker]['Shares'] = shares
 
 
+    def set_quota(self, tickers):
+        
+        # Initialise
+        quota = self.balance / len(tickers)
+        self._quotaPerStock = quota
+        for ticker in tickers:
+            if ticker in self._portfolio:
+                self._portfolio[ticker]['Quota'] = quota
+                
+
     def update_shares(self, ticker, share_delta):
 
         self.set_shares(ticker, self.get_shares(ticker) + share_delta)
+        self._portfolio[ticker]['Quota'] -= share_delta
 
 
     def update_trade(self, ticker, share_delta, price, fee):

@@ -8,7 +8,7 @@ import pandas as pd
 import datetime as dt
 import tushare as ts
 import logging
-from universe import Universe
+
 
 class Alpha:
 
@@ -20,28 +20,26 @@ class Alpha:
             self._time = dt.datetime.strptime(time, "%Y-%m-%d")
         else:
             self._time = time
-        self._universe = Universe(tickers, time)
-        # Trivial or follow a certain index
-        self._subuniverse = Universe(tickers, time)
-        # The main objective of this class
+        self._universe = tickers
+        # the initial pool
         self._size = size
 
 
     def get_data(self, time, source = "tushare"):
 
         # provide data for the scoring function
-        for ticker in self._universe._tickers:
+        for ticker in self._universe:
             if source == "tushare":
                 self._data[ticker] = list(ts.get_hist_data(ticker, start = str(time), end = str(time + dt.timedelta(days = 1)), ktype = "5")["close"])
                 # in tushare, with ktype="5" you get data BEFORE the end, while with ktype="D" you get data TILL the end. 
-        self._logger.info('Loaded historical data, No. stocks %s' % (len(self._universe._tickers)))
+        self._logger.info('Loaded historical data, No. stocks %s' % (len(self._universe)))
 
 
     def scoring(self, time):
 
         # the algorithm part
         self._alpha = {}
-        for ticker in self._universe._tickers:
+        for ticker in self._universe:
             if len(self._data[ticker]) == 0:
                 continue
             self._alpha[ticker] = np.mean(self._data[ticker]) - self._data[ticker][0]
@@ -57,28 +55,28 @@ class Alpha:
         pool = []
         for row in aaa.iterrows():
             ticker = row[1][0]
-            if ticker in self._universe._tickers:
+            if ticker in self._universe:
                 pool.append(ticker)
                 i += 1
             if i >= self._size:
                 break
-        self._subuniverse.updatingPool(time = self._time, tickers = pool)
-        self._logger.info('On', str(self._subuniverse._update), 'selected tickers:', self._subuniverse._tickers)
-        return self._subuniverse._tickers
+        self._logger.info("On", str(self._time), 'selected tickers:', pool)
+        return pool
             
 
     def main(self, ndays = 10):
 
         # for test
         import time
+        from universe import Universe
+        u = Universe(tickers = self._universe, time = self._time)
         
         for i in range(ndays):
 
             start_time = time.time()
-            time_ = self._time + dt.timedelta(days = i)
+            time_ = self._time + dt.timedelta(days = 1)
             print("On", time_) #############################
             self.get_data(time_)
-            stop_time = time.time()
             print("data ready, time used:", time.time() - start_time) ##############################
             start_time = time.time()
             self.scoring(time_)
@@ -88,22 +86,23 @@ class Alpha:
                 print("No alpha on this day")
                 continue
             start_time = time.time()
-            self.selection()
-            self._universe.updatingPool(time_)
+            u.updatingPool(time_, self.selection())
             print("selection done, time used:", time.time() - start_time) #####################
             start_time = time.time()
-            self._universe.evaluation()
-            self._subuniverse.evaluation()
-            print("evaluation done, time used:", time.time() - start_time) #########################
+            u.evaluation()
+            print("evaluation done, time used:", time.time() - start_time) #####################
+        
+        return u._networth
 
 
 if __name__ == '__main__':
 
-    sz50 = list(pd.read_csv("sz50.csv", sep = " ", header = None, dtype = str)[0])
-    time = dt.datetime.strptime("2018-04-23", "%Y-%m-%d")
-    a = Alpha(sz50, time)
-    print(a._universe._tickers)
-    a.main()
-    print(a._subuniverse._networth)
-    print(a._universe._networth)
+    hs300 = list(pd.read_csv("hs300.csv", sep = " ", header = None, dtype = str)[0])
+    hs300 = np.random.choice(hs300, size = 20, replace = False)
+    time = dt.datetime.strptime("2018-05-02", "%Y-%m-%d")
+    a = Alpha(hs300, time)
+    out = a.main()
+    print(out)
+    
+    
     

@@ -7,38 +7,27 @@ Created on Wed Apr 25 17:22:59 2018
 """
 
 import numpy as np
+import datetime as dt
 
 
 class Algorithm_stalker:
 
 
-    def __init__(self, ticker):
+    def __init__(self):
 
         self._space = {}
-        self._universe = ticker
 
         self._window = 10
         # length of moving average
 
-        self._trend = np.zeros(self._price_window)
+        self._trend = np.zeros(self._window)
         # moving average of portfolio values
         self._minimum_wait_between_trades = dt.timedelta(minutes = 5)
         # minimum trade interval
         self._last_trade = {}
         # latest trade time
-        self._quota = {}
-        # quota for each stock in the universe
-        self._maximum_amount_per_trade = 0
+        self._maximum_amount_per_trade = 10000
 
-
-    def set_quota(self, portfolio_value):
-
-        self._quota = {}
-        amt = portfolio_value / len(self._universe)
-        self._maximum_amount_per_trade = amt / 5
-        for stock in self._universe:
-            self._quota[stock] = amt
-    
     
     def update(self, stock, price, vol):
 
@@ -67,11 +56,9 @@ class Algorithm_stalker:
         ind += 1
         if ind >= self._window:
             self._space[stock]['vwap'] = np.sum(plist * vlist) / np.sum(vlist)
-        
 
 
-
-    def _determine_if_trading(self, stock, price, time, cash_balance, share_available):
+    def _determine_if_trading(self, stock, price, time, cash_balance, quota, share_available):
         
         if stock not in self._last_date:
             pass
@@ -83,7 +70,7 @@ class Algorithm_stalker:
 
         buy, sell = False
 
-        buyable = stock in self._universe and cash_balance > 0
+        buyable = quota > 0 and cash_balance > 0
         sellable = share_available > 0.01
         
         if price < self._space[stock]['vwap']:
@@ -101,16 +88,14 @@ class Algorithm_stalker:
 
         cash = portfolio.balance
         shares = portfolio.get_shares(stock)
+        price = self.get_price(stock)
+        quota = portfolio.get_quota(stock)
 
-        l = len(self._universe)
-        if l == 0:
-            return orders
-
-        action = self._determine_if_trading(stock, price, time, cash, share):
+        action = self._determine_if_trading(stock, price, time, cash, quota, shares)
     
         if action[0]:
 
-            amt = min(cash, self._quota[stock], self._maximum_amount_per_trade)
+            amt = min(cash, quota, self._maximum_amount_per_trade)
             vol = np.round(amt / self.get_price(stock))
             orders.append((stock, self.get_price, vol))
             self._last_trade[stock] = time
@@ -123,6 +108,7 @@ class Algorithm_stalker:
 
         return orders
 
+
     def get_price(self, stock):
 
         # Assumes history is full
@@ -130,14 +116,4 @@ class Algorithm_stalker:
 
 
 
-if __name__ == '__main__':
-
-    from domain import Portfolio as portfolio
-
-    a = Algorithm()
-    p = portfolio()
-    history = np.ones(10)
-    a.add_trend_value(p.get_total_value())
-    
-    ticker = "601155"
 

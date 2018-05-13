@@ -36,7 +36,7 @@ class Universe:
         if tickers is not None:
             self._tickers = tickers
         if isinstance(time, str):
-            dt.datetime.strptime(time, "%Y-%m-%d")
+            time = dt.datetime.strptime(time, "%Y-%m-%d")
         self._update = time
 
 
@@ -123,9 +123,9 @@ if __name__ == '__main__':
     #out = tst.find_next_data(tst._update)
     #print(out)
     #print(ts.get_hist_data("hs300", "2018-05-03", "2018-05-04")["close"])
-    tst.updatingPool(tickers, "2018-05-03")
+    tst.updatingPool("2018-05-03", tickers)
     tst.evaluation()
-    tst.updatingPool(tickers, "2018-05-04")
+    tst.updatingPool("2018-05-04", tickers)
     tst.evaluation()
     print(tst._networth)
 

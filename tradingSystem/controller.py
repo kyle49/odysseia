@@ -1,11 +1,9 @@
-
-import numpy as np
 import datetime as dt
-from algorithm00 import Alpha
-from algorithm01 import Algorithm_stalker
+from algorithm01 import Algorithm_stalker as Algorithm
 from domain import Portfolio
 from orderAPI import OrderApi
 from datasource import DataSource
+from multiprocessing import Process, Queue
 import logging
 
 class Controller:
@@ -14,7 +12,7 @@ class Controller:
 
         self._logger = logging.getLogger(__name__)
         self._portfolio = Portfolio() if portfolio is None else portfolio
-        self._algorithm = Algorithm_stalker() if algorithm is None else algorithm
+        self._algorithm = Algorithm() if algorithm is None else algorithm
         self._order_api = OrderApi()
 
     @classmethod
@@ -48,7 +46,7 @@ class Controller:
 
                     if len(orders) > 0:                        
                         print("Orders", orders)
-                        controller.process_order(order)
+                        controller.process_order(orders)
                         controller._logger.info(controller._portfolio.value_summary(timestamp))
 
         except Exception as e:
@@ -56,6 +54,7 @@ class Controller:
 
         finally:
             controller._logger.info(controller._portfolio.value_summary(None))
+            print("Day finished")
 
 
     def process_pricing(self, ticker, price, vol):
@@ -95,6 +94,9 @@ class Controller:
         return False
 
 
+from universe import Universe
+from algorithm00 import Alpha
+
 class Backtester:
 
     def __init__(self):
@@ -108,8 +110,7 @@ class Backtester:
             'End_Day' : dt.datetime.today(),
             'Tickers' : ['601318','601155','000732','600340'],
             'ktype' : 'D',
-            'atype' : 'close'
-
+            'atype' : 'close',
             'Portfolio' : Portfolio(),
             'Algorithm' : Algorithm(),
         }
@@ -119,7 +120,7 @@ class Backtester:
 
         self._settings['Tickers'] = tickers
 
-
+    """
     def set_portfolio(self, portfolio):
 
         self._settings['Portfolio'] = portfolio
@@ -128,7 +129,7 @@ class Backtester:
     def set_algorithm(self, algorithm):
 
         self._settings['Algorithm'] = algorithm
-
+    """
 
     def set_source(self, source):
 
@@ -183,20 +184,27 @@ class Backtester:
         if day_current > day_end:
             print ("Error in time! Starting time > End time!!")
             return
-        
+        self._universe = Universe(tickers = self.get_setting('Tickers'), time = self.get_setting('Start_Day'))
+        self._subuniverse = Universe(tickers = self.get_setting('Tickers'), time = self.get_setting('Start_Day'))
+        self._portfolio = self.get_setting('Portfolio')
         self.set_stock_universe = Alpha(self.get_setting('Tickers'), day_current)
 
         while day_current < day_end:
 
             # Daily update
 
-            day_current += dt.deltatime(days = 1)
-            print(str(day_current))
+            day_current += dt.timedelta(days = 1)
+            print(str(day_current)) #########################
 
             # Generate Alpha
 
-            self._pool.get_data(day_current).scoring(day_current)
-            pool = self._pool.selection()
+            a = Alpha(self._universe._tickers, day_current)
+            a.get_data(day_current)
+            a.scoring(day_current)
+            pool = a.selection()
+            self._subuniverse.updatingPool(time = day_current, tickers = pool)
+            self._algorithm = Algorithm()
+            self._portfolio.set_quota(pool)
 
             # Multiprocess initialise
         
@@ -214,8 +222,8 @@ class Backtester:
             )
 
             c = Controller(
-                portfolio=self.get_setting('Portfolio'),
-                algorithm=self.get_setting('Algorithm')
+                portfolio=self._portfolio,
+                algorithm=self._algorithm
             )
         
             p = Process(target=DataSource.process, args=((q,ds)))
@@ -230,13 +238,16 @@ class Backtester:
 if __name__ == '__main__':
 
     import time
+    import numpy as np
+    import pandas as pd
     start_ = time.time()
-    sz50 = list(pd.read_csv("sz50.csv", sep = " ", header = None, dtype = str)[0])
+    hs300 = list(pd.read_csv("hs300.csv", sep = " ", header = None, dtype = str)[0])
+    hs300s = np.random.choice(hs300, size = 20, replace = False)
     b = Backtester()
-    b.set_stock_universe(sz50)
+    b.set_stock_universe(hs300s)
     b.set_start_date(dt.datetime(2018,5,3))
     b.set_end_date(dt.datetime(2018,5,8))
-    b.set_source("local")
+    b.set_source("tushare")
     b.set_freq_type("5")
     
     b.backtest()

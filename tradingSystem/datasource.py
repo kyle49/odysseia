@@ -136,7 +136,7 @@ if __name__ == '__main__':
     print(ds._source[0:10])
     end_ = time.time()
     print("Time used: ", end_ - start_)
-
+    """
     start_ = time.time()
     ds = DataSource(
             source='local',
@@ -150,3 +150,4 @@ if __name__ == '__main__':
     print(ds._source[0:10])
     end_ = time.time()
     print("Time used: ", end_ - start_)
+    """
