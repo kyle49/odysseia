@@ -35,10 +35,10 @@ class Algorithm_stalker:
             self.add_info(stock, price, vol)
         else:
             l = self._window
-            self._space[stock] = {'plist': np.zeros(l), 'vlist': np.zeros(l), 'index': 0}
+            self._space[stock] = {'plist': np.zeros(l), 'vlist': np.zeros(l), 'index': 0, 'vwap': 0.}
             self._space[stock]['plist'][0] = price
             self._space[stock]['vlist'][0] = vol
-
+        #print(self._space[stock])
 
     def add_info(self, stock, price, vol):
 
@@ -53,24 +53,25 @@ class Algorithm_stalker:
             plist[-1] = price
             vlist[:-1] = vlist[1:]
             vlist[-1] = vol
-        ind += 1
+        self._space[stock]['index'] = ind + 1
         if ind >= self._window:
             self._space[stock]['vwap'] = np.sum(plist * vlist) / np.sum(vlist)
 
 
     def _determine_if_trading(self, stock, price, time, cash_balance, quota, share_available):
         
-        if stock not in self._last_date:
+        if stock not in self._last_trade:
             pass
         elif self._last_trade[stock] - time < self._minimum_wait_between_trades:
             return [False, False]
 
-        if self._space[stock]['ind'] < self._window:
+        if self._space[stock]['index'] < self._window:
             return [False, False]
 
-        buy, sell = False
+        print("condition valid")
+        buy = False; sell = False
 
-        buyable = quota > 0 and cash_balance > 0
+        buyable = (quota > 0 and cash_balance > 0)
         sellable = share_available > 0.01
         
         if price < self._space[stock]['vwap']:
@@ -88,20 +89,22 @@ class Algorithm_stalker:
 
         cash = portfolio.balance
         shares = portfolio.get_shares(stock)
-        price = self.get_price(stock)
+        price = portfolio.get_price(stock)
         quota = portfolio.get_quota(stock)
 
         action = self._determine_if_trading(stock, price, time, cash, quota, shares)
-    
+
         if action[0]:
 
+            print("Buy!") ###################
             amt = min(cash, quota, self._maximum_amount_per_trade)
-            vol = np.round(amt / self.get_price(stock))
-            orders.append((stock, self.get_price, vol))
+            vol = np.round(amt / price)
+            orders.append((stock, price, vol))
             self._last_trade[stock] = time
 
         if action[1]:
 
+            print("Sell!") ##################
             vol = - min(np.round(self._maximum_amount_per_trade / self.get_price(stock)), shares)
             orders.append((stock, self.get_price, vol))
             self._last_trade[stock] = time

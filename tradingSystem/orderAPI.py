@@ -27,7 +27,8 @@ class OrderApi:
 
     def process_order(self, order):
 
-        return (order[0], order[1], order[2], self._calculate_fee(order)) 
+        # takes a tuple, return a tuple
+        return (order[0], order[1], order[2], self._calculate_fee(order))
 
 
     @staticmethod
@@ -37,7 +38,8 @@ class OrderApi:
         if order[2] < 0:
             order[2] = -order[2]
             short = 1
-        return max(1, np.round(order[2]/1000, 0)) + max(5, order[1] * order[2] * (.003 + .001 * short))
+        fee = max(1, np.round(order[2]/1000, 0)) + max(5, order[1] * order[2] * (.003 + .001 * short))
+        return fee
 
 
 if __name__ == "__main__":

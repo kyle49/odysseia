@@ -27,7 +27,6 @@ class Controller:
 
                     if o == 'POISON':
                         break
-                    print(o)
 
                     timestamp = o[0]
                     ticker = o[1]
@@ -54,25 +53,28 @@ class Controller:
 
         finally:
             controller._logger.info(controller._portfolio.value_summary(None))
-            print("Day finished")
 
 
     def process_pricing(self, ticker, price, vol):
 
         self._portfolio.update(price=price, ticker = ticker)
         self._algorithm.update(stock=ticker, price = price, vol = vol)
-        print("Pricing upgrade: done!")
 
 
     def process_order(self, order):
 
         success = False
-        receipt = self._order_api.process_order(order) #(stockID, actual_price, vol, fees)
+        receipt = self._order_api.process_order(order[0]) #(stockID, actual_price, vol, fees)
+        print("Recept: ", receipt)
         if receipt is not None:
             success = self.process_receipt(receipt) 
         if order is None or success is False:
             self._logger.info(('{order_type} failed: %s at $%s for %s shares' % order).format(order_type = 'Sell' if order[2] < 0 else 'Buy'))
-        #print("Order processing: done!")
+        print("Order processing: done!") #######################
+        if success:
+            print("Order completed")
+        else:
+            print("Order failed")
 
 
     def process_receipt(self,receipt):
@@ -96,6 +98,7 @@ class Controller:
 
 from universe import Universe
 from algorithm00 import Alpha
+from daylist import find_next_trading_day
 
 class Backtester:
 
@@ -120,16 +123,6 @@ class Backtester:
 
         self._settings['Tickers'] = tickers
 
-    """
-    def set_portfolio(self, portfolio):
-
-        self._settings['Portfolio'] = portfolio
-
-
-    def set_algorithm(self, algorithm):
-
-        self._settings['Algorithm'] = algorithm
-    """
 
     def set_source(self, source):
 
@@ -178,7 +171,7 @@ class Backtester:
             os.remove(filepath)
         root.addHandler(logging.FileHandler(filename=filepath))
 
-        day_start = self.get_setting('Start_Day')
+        day_start = self.get_setting('Start_Day') #
         day_end = self.get_setting('End_Day')
         day_current = day_start
         if day_current > day_end:
@@ -193,7 +186,7 @@ class Backtester:
 
             # Daily update
 
-            day_current += dt.timedelta(days = 1)
+            day_current = find_next_trading_day(day_current)
             print(str(day_current)) #########################
 
             # Generate Alpha
@@ -202,6 +195,7 @@ class Backtester:
             a.get_data(day_current)
             a.scoring(day_current)
             pool = a.selection()
+            print(pool) #########################
             self._subuniverse.updatingPool(time = day_current, tickers = pool)
             self._algorithm = Algorithm()
             self._portfolio.set_quota(pool)
@@ -212,11 +206,15 @@ class Backtester:
             ds = None
             c = None
 
+            day_next = find_next_trading_day(day_current)
+            if day_next is None:
+                return
+            
             ds = DataSource(
                 source=self.get_setting('Source'),
-                start=self.get_setting('Start_Day'),
-                end=self.get_setting('End_Day'),
-                tickers=self.get_setting('Tickers'),
+                start=day_next, # On T+1 day
+                end=day_next + dt.timedelta(days = 1),
+                tickers=pool,
                 ktype=self.get_setting('ktype'),
                 atype=self.get_setting('atype')
             )

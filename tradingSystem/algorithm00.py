@@ -42,7 +42,8 @@ class Alpha:
         for ticker in self._universe:
             if len(self._data[ticker]) == 0:
                 continue
-            self._alpha[ticker] = np.mean(self._data[ticker]) - self._data[ticker][0]
+            m = np.mean(self._data[ticker])
+            self._alpha[ticker] = (m - self._data[ticker][0]) / m
             # TWAP - close
         self._time = time
         self._logger.info('Computation of alphas completed')
@@ -60,7 +61,8 @@ class Alpha:
                 i += 1
             if i >= self._size:
                 break
-        self._logger.info("On", str(self._time), 'selected tickers:', pool)
+        self._logger.info('selected tickers: ')
+        self._logger.info(pool)
         return pool
             
 

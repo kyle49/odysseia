@@ -55,7 +55,7 @@ class DataSource:
                 except Exception as e:
                     self._logger.error(e)
                     pass
-                counter+=1
+                counter += 1
 
             events = []
             for i in range(len(prices)):
@@ -85,7 +85,7 @@ class DataSource:
                 except Exception as e:
                     self._logger.error(e)
                     pass
-                counter+=1
+                counter += 1
 
             events = []
             for i in range(len(prices)):
@@ -126,7 +126,7 @@ if __name__ == '__main__':
     start_ = time.time()
     ds = DataSource(
             source='tushare',
-            start=dt.datetime(2018,5,1),
+            start=dt.datetime(2018,5,10),
             end=dt.datetime.today(),
             tickers=['601318'],
             ktype="5"
