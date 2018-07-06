@@ -46,11 +46,9 @@ class tickDataProcessing:
             args += self.pasteName('bid') + self.pasteName('bidVol')
             args.remove('bidbook')
         if timeI is None:
-            if convert:
-                return self.convert_to_time(self._sampleDF[args])
-            else:
-                return self._sampleDF[args]
+            out = self._sampleDF[args]
         else:
+            start_, end_ = timeI[0], timeI[1]
             df = self._sampleDF
             if isinstance(timeI[0], dt.time):    
                 start_ = int(timeI[0].hour *1e7 + timeI[0].minute *1e5 + timeI[0].second *1e3)
@@ -60,10 +58,11 @@ class tickDataProcessing:
                 end_ = int(timeI[1].hour *1e7 + timeI[1].minute *1e5 + timeI[1].second *1e3)
             if end_ > 150000000: end_ = 150000000
             df = df[df.index <= end_]
-            if convert:
-                return self.convert_to_time(df[args])
-            else:
-                return df[args]
+            out = df[args]
+        if convert:
+            return self.convert_to_time(out)
+        else:
+            return out
 
 
     @staticmethod
