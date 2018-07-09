@@ -6,10 +6,10 @@ Created on Wed Jul  4 17:36:35 2018
 """
 
 import numpy as np
-import pandas as pd
-import datetime as dt
+#import pandas as pd
+#import datetime as dt
 from tickDataProcessing import tickDataProcessing as TDP
-from matplotlib import pyplot as plt
+#from matplotlib import pyplot as plt
 
 class estImpact:
     
@@ -17,7 +17,8 @@ class estImpact:
         self._DF = TDP(stockID, path)
         self._amts = [1e5]
         self._timeInterval = None
-        self._method = None
+        self._ratio = 0
+        self._method = 'TWAP'
 
 
     def set_times(self, targetTime):
@@ -26,18 +27,16 @@ class estImpact:
     
     def set_amts(self, targetAmount):
         if isinstance(targetAmount, float):
-            self._amts = [targetAmount]
+            self._amts = np.array([targetAmount])
             return
-        self._amts = targetAmount        
+        self._amts = np.array(targetAmount)        
         
             
-    def set_method(self, method):
-        self._method = method
-        # if method is None/last: target Amount will be trade only on askbook/bidbook
-        # if method is mean: target Amount will be trade traded 
-        # if method is provoke
-        
-        
+    def set_ratio(self, ratio):
+        self._ratio = ratio
+        # target vol X, market vol Y, ratio r
+        # then the extra vol is X*X / (X + rY)
+        # the larger r the better price we get
             
         
     def _estExtraPrice(self, timeI, ask = True):
@@ -58,23 +57,55 @@ class estImpact:
         return amountOut / volOut
     
     
-
+    def set_method(self, method):
+        self._method = method
+        # accept 'TWAP' or 'VWAP' for now
         
     
-    def main(self):
-        exPList = self._estExtraPrice(self.timeInterval).mean()
-        frame = self.DF.get_data(self.timeInterval, ['vol', 'amount'])
-        vwap = frame['amount'].sum() / frame['vol'].sum()
-        inPList = self.askbook.mean()
-        inPList = inPList[inPList.index >= vwap].cumsum()
+    def main(self, ask = True):
+        exPList = self._estExtraPrice(self._timeInterval, ask)
+        frame = self._DF.get_data(self._timeInterval, ['vol', 'amount'])
+        if self._method == 'TWAP':
+            exPrice = exPList.mean()
+        elif self._method == 'VWAP':
+            exPrice = sum(exPList * frame['vol']) / sum(frame['vol'])
+        vol = frame['vol'].sum()
+        volList = self._amts * self._amts / abs(self._amts + self._ratio * vol)
+        vwap = frame['amount'].sum() / vol
         estPrice = []
         inflation = []
-        for _vol in self.vols:
-            try:
-                _estPrice = inPList.index[sum(inPList <= _vol)]
-            except(IndexError):
-                _estPrice = max(exPList, _estPrice)
-            print("Vol intended %d, estimated trading price %.2f" %(_vol, _estPrice))
-            estPrice.append(_estPrice)
-            inflation.append((_estPrice - vwap) / vwap)
+        if ask:
+            inPList = self._askbook.mean()
+            inPList = inPList[inPList.index >= vwap].cumsum()
+            for _vol in volList:
+                try:
+                    _estPrice = inPList.index[sum(inPList <= _vol)]
+                except(IndexError):
+                    _estPrice = max(exPrice, _estPrice)
+                print("Vol intended %d, estimated trading price %.2f" %(_vol, _estPrice))
+                estPrice.append(_estPrice)
+                inflation.append((_estPrice - vwap) / vwap)
+        else:
+            inPList = self._bidbook.mean()[::-1]
+            inPList = inPList[inPList.index <= vwap].cumsum()
+            for _vol in volList:
+                try:
+                    _estPrice = inPList.index[sum(inPList <= _vol)]
+                except(IndexError):
+                    _estPrice = min(exPrice, _estPrice)
+                print("Vol intended %d, estimated trading price %.2f" %(_vol, _estPrice))
+                estPrice.append(_estPrice)
+                inflation.append((vwap - _estPrice) / vwap)
         return estPrice, inflation
+    
+    
+if __name__ == '__main__':
+    
+    import datetime as dt
+    out = estImpact('600519', path = 'dataPackages/')
+    timeInterval = [dt.time(14), dt.time(14, 30)]
+    out.set_times(timeInterval)
+    volList = np.array([1e4, 2e4, 5e4, 1e5, 2e5, 5e5, 1e6])
+    out.set_amts(volList)
+    out.set_method('VWAP')
+    prices, infla = out.main(ask = False)
