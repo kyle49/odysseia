@@ -19,9 +19,9 @@ class tsFeatures:
         self._geneCalendar()
         self.outDF = self._rawDF.copy()
         
-    def _geneCalendar(self):
-        beginDate = dt.datetime.strptime("2016-07-01", "%Y-%m-%d")
-        endDate = dt.datetime.strptime("2016-12-31", "%Y-%m-%d")
+    def _geneCalendar(self, beginDate="2016-07-01", endDate="2016-12-31"):
+        beginDate = dt.datetime.strptime(beginDate, "%Y-%m-%d")
+        endDate = dt.datetime.strptime(endDate, "%Y-%m-%d")
         beginWeekday = 5
         dates = []
         t = beginDate
@@ -35,8 +35,11 @@ class tsFeatures:
         
     def set_var(self, varName):
         self._varName = varName
-    
-    
+                                    
+    def set_timeRange(self, beginDate, endDate):
+        self._geneCalendar(beginDate, endDate)
+
+                                       
     def calendarFeatures(self):
         df = np.zeros((len(self.outDF), 16))
         a = self.outDF[self._dateName]
@@ -59,9 +62,12 @@ class tsFeatures:
         print("calendar features added, current dimensions:", self.outDF.shape)
         
         
-    def summerize(self):
+    def summerize(self, countName=None):
         df = self._rawDF[[self._varName, self._dateName]].copy()
-        df['count'] = 1
+        if countName is None:
+            df['count'] = 1
+        else:
+            df['count'] = self._rawDF[countName]
         df = df.groupby([self._varName, self._dateName]).sum()
         out = df.unstack(level=1)
         out = out['count'].fillna(0)
@@ -123,8 +129,8 @@ class tsFeatures:
     
 if __name__ == "__main__":
     
-    path = "data/Data6/"
-    with open(path + "EnterStorage.csv", mode='r') as f:
+    path = "data6/"
+    with open(path + "入库信息.csv", mode='rb') as f:
         reader_rk = pd.read_csv(f, sep = ',', encoding='utf-8', error_bad_lines=False)
         
     reader_rk['交付日期'] = pd.to_datetime(reader_rk['交付时间'], format='%Y/%m/%d %H:%M').dt.date
