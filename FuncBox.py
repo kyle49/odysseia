@@ -1,13 +1,16 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Wed Apr  4 12:22:00 2018
-
-@author: Kyle
-@origin: Adavance in Financial Machine Learning
-"""
+#%% Packages
 
 import numpy as np
-#import pandas as pd
+import pandas as pd
+
+'''
+Collection of Functions 
+'''
+
+# %% PCA weights
+
+# [Source] Adavance in Financial Machine Learning
+# [Date] Long ago...
 
 def pcaWeights(cov, riskDist = None, riskTarget = 1.):
     # Following the riskAlloc dist., match riskTarget

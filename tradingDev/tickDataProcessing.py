@@ -27,7 +27,7 @@ def loadData(file, path):
 
 class tickDataProcessing:
     
-    def __init__(self, stockID, path = 'dataPackages/'):        
+    def __init__(self, stockID, path = '../dataPackages/'):        
         # time intervals measured in minute
         # path = None if data is in local file        
         name = stockID + '.csv'

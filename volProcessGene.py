@@ -30,7 +30,7 @@ class volSimu:
     def simu_vol(self, trace = False, modifiers = [10, 3, 0.6], perHand = 100, Ptrend = 0.5):
         self.v = np.zeros(len(self.x)) 
         if self.init == None:
-            self.make_init(modifier = modifiers[0], trend = Ptrend);
+            self.make_init(modifier = modifiers[0], trend = Ptrend)
         if trace:
             print("Starting with: ", self.init)
         for i in range(len(self.x)):

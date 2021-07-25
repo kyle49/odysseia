@@ -80,10 +80,10 @@ def konto(msg, window = None):
         points = range(window, len(msg) - window + 1)
     for i in points:
         if window is None:
-            l, msg_ = matchLength(msg, i, i)
+            _, msg_ = matchLength(msg, i, i)
             out['sum'] += np.log2(i + 1)/1
         else:
-            l, msg_ = matchLength(msg, i, window)
+            _, msg_ = matchLength(msg, i, window)
             out['sum'] += np.log2(window + 1)/1
         out['subS'].append(msg_)
         out['num'] += 1
